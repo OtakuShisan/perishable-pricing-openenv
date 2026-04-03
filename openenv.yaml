@@ -1,0 +1,31 @@
+name: perishable-pricing-openenv
+version: 0.1.0
+description: Dark-store perishable pricing simulator for OpenEnv agents.
+entrypoint:
+  module: perishable_pricing_env.environment
+  class: PerishablePricingEnv
+api:
+  reset: true
+  step: true
+  state: true
+models:
+  observation: perishable_pricing_env.models.ObservationModel
+  action: perishable_pricing_env.models.ActionModel
+  reward: perishable_pricing_env.models.RewardModel
+tasks:
+  - id: easy_stable_week
+    difficulty: easy
+    grader: tasks.graders.grade_from_kpis
+  - id: medium_volatile_weekend
+    difficulty: medium
+    grader: tasks.graders.grade_from_kpis
+  - id: hard_shock_supply_delay
+    difficulty: hard
+    grader: tasks.graders.grade_from_kpis
+metadata:
+  domain: dynamic_pricing
+  tags:
+    - openenv
+    - perishables
+    - retail
+
