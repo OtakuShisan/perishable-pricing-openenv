@@ -1,133 +1,138 @@
 # Perishable Pricing OpenEnv
 
-Perishable Pricing OpenEnv simulates a real dark-store pricing task where an agent sets daily prices for milk, banana, and bread under expiry constraints, demand uncertainty, and scheduled restocking.
+Perishable Pricing OpenEnv is a real-world dark-store simulation where an agent sets daily prices for milk, banana, and bread while managing expiry, demand uncertainty, and restocking delays.
 
-## Motivation
+## Why this environment
 
-Dynamic pricing with perishables is a real operational problem. Bad pricing causes:
-- low profit from underpricing,
-- stockouts from over-demand,
-- waste from unsold expired units.
+Retail teams do this in real life: choose prices that increase profit without causing stockouts or waste.  
+This environment captures that trade-off over a multi-day horizon.
 
-This environment forces an agent to balance all three over multi-day horizons.
+## OpenEnv Interface
 
-## Environment API
-
-Implements standard OpenEnv style methods:
+The environment follows the standard OpenEnv loop:
 - `reset(seed, task_id) -> ObservationModel`
-- `step(action) -> (ObservationModel, reward, done, info)`
+- `step(action) -> (observation, reward, done, info)`
 - `state() -> dict`
 
-Typed models are defined in `perishable_pricing_env/models.py`.
+Typed models:
+- `perishable_pricing_env.models.ObservationModel`
+- `perishable_pricing_env.models.ActionModel`
+- `perishable_pricing_env.models.RewardModel`
 
-## Observation Space
-
-`ObservationModel` includes:
-- day and weekday context (`day_index`, `day_of_week`, `task_id`)
-- inventory totals per SKU
-- inventory age buckets per SKU
-- minimum hours-to-expiry per SKU
-- lagging signals (`last_prices`, `last_sales`, `last_stockouts`, `last_waste`)
-- rolling estimates (`rolling_demand_estimate`, `rolling_sales_estimate`)
+3-component structure:
+- `perishable_pricing_env/models.py` (typed contracts)
+- `perishable_pricing_env/client.py` (training-side client wrapper)
+- `server/environment.py`, `server/app.py` (server-side simulation + FastAPI)
 
 ## Action Space
 
-`ActionModel`:
+The agent sets one price per SKU each day:
 - `price_milk` in `[10, 120]`
 - `price_banana` in `[5, 80]`
 - `price_bread` in `[5, 90]`
 
+## Observation Space
+
+Observations include:
+- day and task context
+- inventory totals by SKU
+- inventory age buckets by SKU
+- minimum time-to-expiry by SKU
+- lagging operational signals (`last_sales`, `last_waste`, `last_stockouts`, `last_prices`)
+- rolling demand and sales estimates
+
 ## Reward Function
 
-Daily shaped reward:
+Shaped daily reward:
 
 `reward = 0.75*normalized_profit - 0.45*waste_rate - 0.35*stockout_rate - 0.10*price_jump_penalty - invalid_action_penalty + terminal_bonus`
 
-Where:
-- `normalized_profit` scales realized daily profit to a reference cap,
-- `waste_rate` penalizes expiry losses,
-- `stockout_rate` penalizes poor service levels,
-- `price_jump_penalty` discourages unstable pricing,
-- `invalid_action_penalty` discourages unrealistic extreme pricing.
+This gives continuous learning signal (not only terminal success) and penalizes undesirable behavior.
 
-`info` returns full reward breakdown each step.
-
-## Tasks and Difficulty
+## Tasks (Easy -> Medium -> Hard)
 
 Defined in `perishable_pricing_env/config.py`:
-- `easy_stable_week` (easy): low noise, stable demand.
-- `medium_volatile_weekend` (medium): stronger stochasticity + weekday pattern.
-- `hard_shock_supply_delay` (hard): demand shock + delayed supply event.
+- `easy_stable_week`
+- `medium_volatile_weekend`
+- `hard_shock_supply_delay`
 
-Each task is graded deterministically to `[0, 1]` using KPI normalization:
-- profit quality,
-- waste control,
-- service level.
+Each task has deterministic grading to `[0.0, 1.0]` based on episode KPI normalization (profit, waste control, service level).
 
-## Logging and Traceability
+## Trace Logging
 
-During baseline runs, per-step summaries print in terminal. End-of-episode traces are saved:
+Every run can produce:
 - `artifacts/run_trace.csv`
 - `artifacts/run_trace.jsonl`
 - `artifacts/baseline_scores.json`
+- `artifacts/trace_plots.png`
 
-These include chosen prices, noise draws, demand, sales, stockouts, waste, profit, and reward.
+The trace captures prices, demand noise, sales, waste, stockouts, profit, and reward per step.
 
-## Setup
+## Setup (Windows PowerShell)
 
 ```bash
 python -m venv .venv
-# Windows PowerShell
-.venv\\Scripts\\Activate.ps1
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-## Local Usage
+## Run Locally
 
-Run baseline (uses `OPENAI_API_KEY` if set, otherwise deterministic heuristic fallback):
+Run baseline (OpenAI API optional; heuristic fallback if key missing):
 
 ```bash
 python scripts/run_baseline.py
 ```
 
-Run API server:
+Run mandatory submission inference (strict log format):
 
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 7860
+# required env vars
+$env:API_BASE_URL="https://router.huggingface.co/v1"
+$env:MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+$env:HF_TOKEN="<your_token>"
+python inference.py
 ```
 
-## OpenEnv Validation
-
-If OpenEnv CLI is installed:
+Generate reward/profit/waste trends:
 
 ```bash
-openenv validate openenv.yaml
+python scripts/plot_trace.py --input artifacts/run_trace.csv --output artifacts/trace_plots.png
+```
+
+Run server:
+
+```bash
+python -m server.app
+```
+
+## Validate OpenEnv package
+
+```bash
+openenv validate .
+```
+
+Pre-submit validator script:
+
+```bash
+bash scripts/validate-submission.sh https://<your-space>.hf.space .
 ```
 
 ## Docker
 
-Build:
-
 ```bash
 docker build -t perishable-pricing-openenv .
-```
-
-Run:
-
-```bash
 docker run --rm -p 7860:7860 perishable-pricing-openenv
 ```
 
-## Hugging Face Spaces
+## Hugging Face Spaces (Docker SDK)
 
-Use Docker SDK Space and push this repository with:
-- `Dockerfile`
-- `openenv.yaml`
-- project source files
+1. Create a Docker Space.
+2. Push this repository.
+3. Ensure metadata includes `openenv` tag.
+4. Set runtime env vars (for baseline model runs), e.g. `OPENAI_API_KEY`.
 
-Set Space metadata/tag to include `openenv`.
+## Reproducibility
 
-## Baseline Reproducibility
-
-Baseline uses fixed seed list `[11, 22, 33]` across all three tasks and writes aggregate scores to `artifacts/baseline_scores.json`.
+Baseline uses fixed seeds `[11, 22, 33]` across all tasks and writes aggregate metrics to `artifacts/baseline_scores.json`.
 

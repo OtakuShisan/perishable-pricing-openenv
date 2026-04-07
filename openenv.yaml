@@ -2,8 +2,8 @@ name: perishable-pricing-openenv
 version: 0.1.0
 description: Dark-store perishable pricing simulator for OpenEnv agents.
 entrypoint:
-  module: perishable_pricing_env.environment
-  class: PerishablePricingEnv
+  module: server.environment
+  class: Environment
 api:
   reset: true
   step: true

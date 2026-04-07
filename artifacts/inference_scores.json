@@ -1,0 +1,20 @@
+[
+  {
+    "task_id": "easy_stable_week",
+    "score": 0.7873632280455132,
+    "steps": 14,
+    "success": true
+  },
+  {
+    "task_id": "medium_volatile_weekend",
+    "score": 0.7591019891704303,
+    "steps": 14,
+    "success": true
+  },
+  {
+    "task_id": "hard_shock_supply_delay",
+    "score": 0.6538360143527101,
+    "steps": 14,
+    "success": true
+  }
+]
