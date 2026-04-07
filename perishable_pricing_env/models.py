@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from openenv.core.env_server.types import Action, Observation
 from pydantic import BaseModel, Field
 
 
 SKU = str
 
 
-class ObservationModel(BaseModel):
+class ObservationModel(Observation):
     day_index: int
     day_of_week: int = Field(ge=0, le=6)
     task_id: str
@@ -23,7 +24,7 @@ class ObservationModel(BaseModel):
     rolling_sales_estimate: Dict[SKU, float]
 
 
-class ActionModel(BaseModel):
+class ActionModel(Action):
     price_milk: float = Field(ge=10.0, le=120.0)
     price_banana: float = Field(ge=5.0, le=80.0)
     price_bread: float = Field(ge=5.0, le=90.0)

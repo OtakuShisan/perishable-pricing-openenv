@@ -1,9 +1,14 @@
+spec_version: 1
 name: perishable-pricing-openenv
+type: space
+runtime: fastapi
+app: server.app:app
+port: 7860
 version: 0.1.0
 description: Dark-store perishable pricing simulator for OpenEnv agents.
 entrypoint:
-  module: server.environment
-  class: Environment
+  module: server.perishable_pricing_environment
+  class: PerishablePricingEnvironment
 api:
   reset: true
   step: true
