@@ -5,4 +5,5 @@ numpy
 openai
 pyyaml
 matplotlib
+openenv-core>=0.2.0
 
